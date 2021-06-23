@@ -16,32 +16,44 @@ var (
 func main() {
 	funcs := make([]func() error, 0, 10)
 	// Creating functions which returns errors
-	for i := 0; i < 2; i++ {
-		funcs = append(funcs, Correct)
-	}
-	//fmt.Println(Execute(funcs,2, 10))
-	fmt.Println(ExecuteChan(funcs, 2, 3))
+	funcs = append(funcs, Correct)
+	funcs = append(funcs, Correct)
+	funcs = append(funcs, Correct)
+	funcs = append(funcs, Correct2)
+	funcs = append(funcs, InCorrect)
+	fmt.Println(Execute(funcs, 10))
+	//fmt.Println(ExecuteChan(funcs, 3, 10))
 }
 
-// Correct returns error number
-func Correct() error {
+// InCorrect returns error number
+func InCorrect() error {
 	res := errors.New("error number: " + strconv.Itoa(errCount))
 	errs = append(errs, res)
 	return res
 }
 
-func Execute(tasks []func() error, N int, E int) error {
+func Correct() error {
+	_, err := strconv.ParseFloat("5.5", 32)
+	return err
+}
+
+func Correct2() error {
+	_, err := strconv.ParseInt("5",10,16)
+	return err
+}
+
+func Execute(tasks []func() error, E int) error {
 	for _, fun := range tasks {
-		wg.Add(N)
-		for i := 0; i < N; i++ {
+		wg.Add(1)
 			go func() {
-				fun()
+				err := fun()
 				defer wg.Done()
 				mu.Lock()
 				defer mu.Unlock()
-				errCount++
+				if err != nil {
+					errCount++
+				}
 			}()
-		}
 	}
 	wg.Wait()
 	if errCount > E {
@@ -50,25 +62,31 @@ func Execute(tasks []func() error, N int, E int) error {
 	return nil
 }
 
-func ExecuteChan(tasks []func() error, N int, E int) error {
-	ch := make(chan int)
-	cnt := 0
-	for _, fun := range tasks {
-		for i := 0; i < N; i++ {
-			go func() {
-				fun()
-				cnt++
-				ch <- cnt
-			}()
-		}
-	}
-
-	for i := 0; i < len(tasks) * N; i++ {
-		num := <-ch
-		if num > E {
-			return errs[0]
-		}
-	}
-	close(ch)
-	return nil
-}
+//func ExecuteChan(tasks []func() error, E int) error {
+//	var (
+//		ch = make(chan int, 5)
+//		//done = make(chan struct{})
+//	)
+//
+//	cnt := 0
+//	for _, fun := range tasks {
+//		ch <- 1 // will block if there is N ints in channel
+//			go func() {
+//				err := fun()
+//				fmt.Println(err)
+//				if err != nil {
+//					cnt++
+//					ch <- cnt
+//				}
+//			}()
+//		<-ch // removes an int from channel, allowing another to proceed
+//	}
+//	//close(ch)
+//	fmt.Println(len(ch))
+//	for num := range ch {
+//		if num > E {
+//			return errs[0]
+//		}
+//	}
+//	return nil
+//}
