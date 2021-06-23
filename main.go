@@ -12,16 +12,15 @@ var (
 	mu sync.Mutex
 	errCount = 0
 	errs []error
-	ch chan int
 )
 func main() {
 	funcs := make([]func() error, 0, 10)
 	// Creating functions which returns errors
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 2; i++ {
 		funcs = append(funcs, Correct)
 	}
 	//fmt.Println(Execute(funcs,2, 10))
-	fmt.Println(ExecuteChan(funcs, 2, 11))
+	fmt.Println(ExecuteChan(funcs, 2, 3))
 }
 
 // Correct returns error number
@@ -52,7 +51,7 @@ func Execute(tasks []func() error, N int, E int) error {
 }
 
 func ExecuteChan(tasks []func() error, N int, E int) error {
-	ch = make(chan int)
+	ch := make(chan int)
 	cnt := 0
 	for _, fun := range tasks {
 		for i := 0; i < N; i++ {
