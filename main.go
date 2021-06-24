@@ -11,7 +11,7 @@ var (
 	wg sync.WaitGroup
 	mu sync.Mutex
 	errCount = 0
-	errs []error
+
 )
 func main() {
 	funcs := make([]func() error, 0, 10)
@@ -19,16 +19,19 @@ func main() {
 	funcs = append(funcs, Correct)
 	funcs = append(funcs, Correct)
 	funcs = append(funcs, Correct)
+	funcs = append(funcs, Correct)
+	funcs = append(funcs, Correct)
 	funcs = append(funcs, Correct2)
 	funcs = append(funcs, InCorrect)
-	fmt.Println(Execute(funcs, 10))
-	//fmt.Println(ExecuteChan(funcs, 3, 10))
+	funcs = append(funcs, InCorrect)
+	funcs = append(funcs, InCorrect)
+	fmt.Println(Execute(funcs,  1))
+	//fmt.Println(ExecuteChan(funcs, 5,4))
 }
 
 // InCorrect returns error number
 func InCorrect() error {
 	res := errors.New("error number: " + strconv.Itoa(errCount))
-	errs = append(errs, res)
 	return res
 }
 
@@ -43,6 +46,7 @@ func Correct2() error {
 }
 
 func Execute(tasks []func() error, E int) error {
+	var errs []error
 	for _, fun := range tasks {
 		wg.Add(1)
 			go func() {
@@ -52,6 +56,7 @@ func Execute(tasks []func() error, E int) error {
 				defer mu.Unlock()
 				if err != nil {
 					errCount++
+					errs = append(errs, err)
 				}
 			}()
 	}
@@ -62,31 +67,41 @@ func Execute(tasks []func() error, E int) error {
 	return nil
 }
 
-//func ExecuteChan(tasks []func() error, E int) error {
-//	var (
-//		ch = make(chan int, 5)
-//		//done = make(chan struct{})
-//	)
-//
-//	cnt := 0
-//	for _, fun := range tasks {
-//		ch <- 1 // will block if there is N ints in channel
-//			go func() {
-//				err := fun()
-//				fmt.Println(err)
-//				if err != nil {
-//					cnt++
-//					ch <- cnt
-//				}
-//			}()
-//		<-ch // removes an int from channel, allowing another to proceed
-//	}
-//	//close(ch)
-//	fmt.Println(len(ch))
-//	for num := range ch {
-//		if num > E {
-//			return errs[0]
-//		}
-//	}
-//	return nil
-//}
+func ExecuteChan(tasks []func() error, N int, E int) error {
+	var (
+		ch = make(chan int)
+		done = make(chan struct{})
+	    errs []error
+	)
+
+	for _, fun := range tasks {
+			go func() {
+				err := fun()
+				if err != nil {
+					res := errCount + 1
+					sender(ch, res)
+					errs = append(errs, err)
+				}
+			}()
+	}
+	close(ch)
+	if receiver(ch, done, E) {
+		return errs[0]
+	}
+	return nil
+}
+
+func sender(ch chan<- int, num int) {
+	ch <- num
+}
+
+func receiver(ch <-chan int, done chan<- struct{}, E int) bool {
+	for num := range ch {
+		if num > E {
+			return true
+		}
+		fmt.Println(num)
+	}
+	close(done)
+	return false
+}
